@@ -13,7 +13,9 @@ First, edit the directories inside `get_dv_from_chain.py` to be the chain create
  
 ```sbatch projects/lsst_y1/dv_from_chain_one.sbatch```
   
-### Step 3: Train the emulator. First, design your architecture in `train_emulator.py`. Next, ensure the configuration `.yaml` file has a no-scalecut dataset specified. Last, run
+### Step 3: Train the emulator. 
+
+First, design your architecture in `train_emulator.py`. Next, ensure the configuration `.yaml` file has a no-scalecut dataset specified. Last, run
 
 ```python projects/lsst_y1/train_emulator.py $(config.yaml) -f $(training set from step 2)```
   
@@ -25,7 +27,9 @@ Simply edit `delta_chi2.py` to load the model from step 3 and the training set g
 
 ```python ./projects/lsst_y1/delta_chi2.py```
 
-### Step 5: Run an emulated chain. Set the model in 'emulated_chain.py' to the one trained in step 3 and the config to a standard lsst_y1 cosmic shear config with scale cuts. Then run
+### Step 5: Run an emulated chain. 
+
+Set the model in 'emulated_chain.py' to the one trained in step 3 and the config to a standard lsst_y1 cosmic shear config with scale cuts. Then run
 
 `python projects/lsst_y1/emulated_chain.py`
  
