@@ -1,7 +1,11 @@
 # Running
-### Step 0: conda env. Use the cocoatorch conda env (need the file).
+### Step 0: conda env. 
 
-### Step 1: Generate a training dataset. Run
+Use the cocoatorch conda env (need the file).
+
+### Step 1: Generate a training dataset. 
+
+Run
 
 ```python projects/lsst_y1/gaussian_approx.py $(shifted_param) $(shift_amount) $(temperatue) $(output_file)```
   
