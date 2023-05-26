@@ -221,25 +221,26 @@
   # ------------------------------------------------------------------------
   # WL photo-z errors
   LSST_BARYON_Q1:
-    #value: 0.0
-    prior:
-        min: 0.
-        max: 4.
-    ref:
-        dist: norm
-        loc: 3.
-        scale: 1.
-    proposal: 1.
+    value: 0.0
+    # prior:
+    #     min: 0.
+    #     max: 4.
+    # ref:
+    #     dist: norm
+    #     loc: 3.
+    #     scale: 1.
+    # proposal: 1.
     latex: Q1_\mathrm{LSST}^1
   LSST_BARYON_Q2:
-    prior:
-        min: -2.5
-        max: 2.5
-    ref:
-        dist: norm
-        loc: 0.
-        scale: 1.
-    proposal: 1.
+    value: 0.0
+    # prior:
+    #     min: -2.5
+    #     max: 2.5
+    # ref:
+    #     dist: norm
+    #     loc: 0.
+    #     scale: 1.
+    # proposal: 1.
     latex: Q2_\mathrm{LSST}^2
   LSST_BARYON_Q3:
     value: 0.0

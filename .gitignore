@@ -4,6 +4,7 @@
 *.pyo
 *.cfg
 chains/
+emulator_output/
 EXAMPLE_EVALUATE1.yaml
 EXAMPLE_EVALUATE2.yaml
 EXAMPLE_MCMC1.yaml
