@@ -1,0 +1,21 @@
+path: null
+data_file: LSST_Y1.dataset
+accuracyboost: 1.0
+samplingboost: 1.0
+integration_accuracy: 1 # integer 0, 1 or 2 - necessary (instead of zero)
+kmax_boltzmann: 20.0
+speed: 1
+
+print_intermediate_products: False
+
+use_baryonic_simulations_for_dv_contamination: False
+which_baryonic_simulations_for_dv_contamination: TNG100
+
+create_baryon_pca: False
+baryon_pca_select_simulations: TNG100/HzAGN/mb2/owls_AGN_T80/owls_AGN_T85/BAHAMAS_T76/BAHAMAS_T78/BAHAMAS_T80
+filename_baryon_pca: "./projects/lsst_y1/data/pca.txt"
+
+print_datavector: False
+print_datavector_file: "./projects/lsst_y1/chains/lsst_y1_theory.modelvector"
+
+params: !defaults [params_lsst_cosmic_shear]

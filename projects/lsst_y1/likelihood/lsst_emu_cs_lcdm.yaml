@@ -1,0 +1,23 @@
+probe: 'cosmic_shear'
+
+
+data_vector_file: "./projects/lsst_y1/data/example3_lsst_y1_theory.modelvector"
+data_vector_used_for_training: "./projects/lsst_y1/data/example3_lsst_y1_theory_no_scale_cut.modelvector"
+n_dim: 12 #Total parameter number used FOR EMULATION
+
+emu_file: "./projects/lsst_y1/emulator_output/baseline_cosmic_shear/model_0"
+
+
+n_pcas_baryon: 0
+baryon_pca_file: "./projects/lsst_y1/data/pca.txt"
+
+emu_type: 'nn'
+mask_file: "./projects/lsst_y1/data/lsst_3x2_cs_only.mask"
+cov_file:  "./projects/lsst_y1/data/cov_lsst_y1"
+shear_calib_mask: "./projects/lsst_y1/data/emu_files/shear_calib_mask.npy"
+galaxy_bias_mask: "./projects/lsst_y1/data/emu_files/bias_mask.npy"
+lens_ntomo: 5
+source_ntomo: 5
+
+params: !defaults [params_lsst_cosmic_shear]
+

@@ -87,7 +87,8 @@ def get_data_vectors(params_list, comm, rank):
 #here is the root directory to open chains
 root = '/gpfs/projects/MirandaGroup/evan/cocoa2/Cocoa/projects/lsst_y1/emulator_output/chains/'
 if(rank==0):
-    posterior_params = get_samples_from_posterior(root+'gaussian_t512_0')#root+sys.argv[2]+'_0')
+    # need to change this to your training samples, Reads as a getdist chain
+    posterior_params = get_samples_from_posterior(root+'gaussian_t512_0') 
     print("testing:", np.shape(posterior_params))
 else:
     posterior_params = None

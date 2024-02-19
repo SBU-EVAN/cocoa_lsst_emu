@@ -1,0 +1,31 @@
+if [ -z "${ROOTDIR}" ]; then
+    echo 'ERROR ROOTDIR not define'
+    return
+fi
+if [ -z "${CXX_COMPILER}" ]; then
+    echo 'ERROR CXX_COMPILER not define'
+    return
+fi
+if [ -z "${C_COMPILER}" ]; then
+    echo 'ERROR C_COMPILER not define'
+    return
+fi
+if [ -z "${MAKE_NUM_THREADS}" ]; then
+    echo 'ERROR MAKE_NUM_THREADS not define'
+    return
+fi
+
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# ----------------------------- COMPILE COSMOLIKE ----------------------------
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+cd $ROOTDIR/projects/lsst_y1/interface
+
+make -f MakefileCosmolike clean
+
+make -j $MAKE_NUM_THREADS -f MakefileCosmolike all
+
+cd $ROOTDIR
+

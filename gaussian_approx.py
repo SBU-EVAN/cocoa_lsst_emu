@@ -150,7 +150,7 @@ def lnprob(theta):
     prob=lnprior(theta) + ln_lkl(theta)
     return prob
 
-N_MCMC        = 1500000
+N_MCMC        = 500000
 N_WALKERS     = 120
 NDIM_SAMPLING = 12
 
@@ -197,7 +197,7 @@ theta_std = np.array([0.01, 0.001, 0.1, 0.001, 0.002,
 
 mean  = np.array(mean)#np.loadtxt('lsst_y1_fid.txt')
 means = np.zeros(NDIM_SAMPLING)
-param_cov = np.loadtxt('lsst_y1_cov.txt')[:NDIM_SAMPLING,:NDIM_SAMPLING]
+param_cov = np.loadtxt('./projects/lsst_y1/lsst_y1_cov.txt')[:NDIM_SAMPLING,:NDIM_SAMPLING]
 #print(mean[:5])
 #print(param_cov[:5,:5])
 
@@ -239,7 +239,7 @@ names = ['logA', 'ns', 'H0', 'omegab', 'omegac',
 labels = names
 
 # Do the sampling
-with mp.Pool(n_cpus) as pool:
+with mp.Pool(2*n_cpus) as pool:
     sampler = emcee.EnsembleSampler(N_WALKERS, NDIM_SAMPLING, lnprob, pool=pool)
     sampler.run_mcmc(pos0, N_MCMC, progress=True)
 

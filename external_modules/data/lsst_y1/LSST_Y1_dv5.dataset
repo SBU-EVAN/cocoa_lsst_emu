@@ -1,0 +1,15 @@
+data_file = example5_lsst_y1_theory.modelvector
+cov_file = cov_lsst_y1
+#mask_file = lsst_3x2_baryon.mask
+mask_file = lsst_3x2.mask
+#mask_file = ones.mask
+nz_lens_file = lens_LSSTY1.nz 
+nz_source_file = source_LSSTY1.nz
+lensing_overlap_cut = 0.00
+lens_ntomo = 5
+source_ntomo = 5
+n_theta = 26
+IA_model = 4
+theta_min_arcmin = 2.5
+theta_max_arcmin = 900.
+baryon_pca_file = pca.txt
