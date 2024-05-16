@@ -8,7 +8,18 @@ sys.path.insert(0, os.path.abspath(".."))
 
 from cocoa_emu import cocoa_config
 from cocoa_emu import nn_pca_emulator 
-from cocoa_emu.nn_emulator import Affine, ResBlock, ResBottle, DenseBlock, Attention, Transformer, True_Transformer, Better_Attention, Better_Transformer
+from cocoa_emu.nn_emulator import Affine, \
+                                  ResBlock, \
+                                  ResBottle, \
+                                  DenseBlock, \
+                                  Attention, \
+                                  Transformer, \
+                                  True_Transformer, \
+                                  Better_Attention, \
+                                  Better_Transformer, \
+                                  Better_ResBlock, \
+                                  mamba_block, \
+                                  SSM
 
 if '--auto' in sys.argv:
     idx = sys.argv.index('--auto')
@@ -26,6 +37,16 @@ else:
     INT_DIM = 128
     N=0
 
+# cuda or cpu
+if torch.cuda.is_available():
+    device = 'cuda'
+else:
+    device = 'cpu'
+    torch.set_num_interop_threads(40) # Inter-op parallelism
+    torch.set_num_threads(40) # Intra-op parallelism
+
+print('Using device: ',device)
+
 ################################
 #                              #
 #    DEFINE YOUR MODEL HERE    #
@@ -41,10 +62,9 @@ out_dim = 780
 
 layers = []
 layers.append(nn.Linear(in_dim, int_dim_res))
-layers.append(ResBlock(int_dim_res, int_dim_res))
-layers.append(ResBlock(int_dim_res, int_dim_res))
-layers.append(ResBlock(int_dim_res, int_dim_res))
-# layers.append(ResBlock(int_dim_res, int_dim_res))
+layers.append(Better_ResBlock(int_dim_res, int_dim_res))
+layers.append(Better_ResBlock(int_dim_res, int_dim_res))
+layers.append(Better_ResBlock(int_dim_res, int_dim_res))
 layers.append(nn.Linear(int_dim_res, int_dim_trf))
 layers.append(Better_Attention(int_dim_trf, n_channels))
 layers.append(Better_Transformer(int_dim_trf, n_channels))
@@ -52,9 +72,44 @@ layers.append(Better_Attention(int_dim_trf, n_channels))
 layers.append(Better_Transformer(int_dim_trf, n_channels))
 layers.append(Better_Attention(int_dim_trf, n_channels))
 layers.append(Better_Transformer(int_dim_trf, n_channels))
-layers.append(nn.Linear(int_dim_trf, out_dim))
+layers.append(nn.Linear(int_dim_trf,out_dim))
 layers.append(Affine())
 
+##############################################
+#       TRYING TO OVERFIT WITH THIS          #
+##############################################
+# layers.append(nn.Linear(in_dim, int_dim_res))
+# #layers.append(nn.Dropout(p=0.3))
+# layers.append(nn.Linear(int_dim_res, int_dim_res))
+# layers.append(nn.Tanh())
+# layers.append(nn.Linear(int_dim_res, int_dim_res))
+# layers.append(nn.Tanh())
+# layers.append(nn.Linear(int_dim_res, int_dim_res))
+# layers.append(nn.Tanh())
+# layers.append(nn.Linear(int_dim_res, int_dim_res))
+# layers.append(nn.Tanh())
+# layers.append(nn.Linear(int_dim_res, int_dim_res))
+# layers.append(nn.Tanh())
+# layers.append(nn.Linear(int_dim_res, int_dim_res))
+# layers.append(nn.Tanh())
+# layers.append(nn.Linear(int_dim_res,out_dim))
+# layers.append(Affine())
+
+#####################
+#   TESTING MAMBA   #
+#####################
+# layers.append(nn.Linear(in_dim, int_dim_res))
+# layers.append(Better_ResBlock(int_dim_res, int_dim_res))
+# layers.append(Better_ResBlock(int_dim_res, int_dim_res))
+# layers.append(Better_ResBlock(int_dim_res, int_dim_res))
+# layers.append(mamba_block(int_dim_res, 2*int_dim_res, 1, 1, 9, 1, 16, device))
+# layers.append(mamba_block(int_dim_res, 2*int_dim_res, 1, 1, 9, 1, 16, device))
+# layers.append(mamba_block(int_dim_res, 2*int_dim_res, 1, 1, 9, 1, 16, device))
+# layers.append(nn.Linear(int_dim_res,out_dim))
+# layers.append(Affine())
+
+
+# construct the model
 model = nn.Sequential(*layers)
 
 #===============================#
@@ -112,9 +167,10 @@ if probe=='cosmic_shear':
     start=0
     stop=780
     sample_dim=12
-    validation_root='./projects/lsst_y1/emulator_output/chains/train_t128'#'./projects/lsst_y1/emulator_output/chains/valid_post_T256_atplanck'
+    # validation_root='./projects/lsst_y1/emulator_output/chains/train_t128'#'./projects/lsst_y1/emulator_output/chains/valid_post_T256_atplanck'
     # validation_root='./projects/lsst_y1/emulator_output/chains/valid_post_T64_atplanck'
-    # validation_root='./projects/lsst_y1/emulator_output/chains/train_t256'
+    validation_root='./projects/lsst_y1/emulator_output/chains/train_t256'
+    # validation_root='./projects/lsst_y1/emulator_output/chains/train_t512'
 elif probe=='3x2pt':
     # 3x2pt is generally very difficult.
     print("trianing for 3x2pt")
@@ -160,7 +216,7 @@ def get_chi_sq_cut(train_data_vectors, chi2_cut):
 ###============= Setting up validation set ============
 validation_samples      = np.load(validation_root+'_samples_0.npy')[::50,:12] # careful with thinning!
 validation_data_vectors = np.load(validation_root+'_data_vectors_0.npy')[::50,start:stop] #Thin only to number of validation dvs you want!
-
+print(len(validation_data_vectors))
 ##### shuffeling
 def unison_shuffled_copies(a, b):
     assert len(a) == len(b)
@@ -193,18 +249,15 @@ if True:
     cov_inv_pc = np.diag(1/evals)#np.linalg.inv(lsst_cov)
     dv_std = np.sqrt(evals)
 
+### BREAK
+# Add random noise to the training data
+# noise = np.random.normal(loc=np.zeros(len(evals))+9*np.mean(train_data_vectors,axis=0), \
+#     scale=np.std(train_data_vectors,axis=0), \
+#     size=validation_data_vectors.shape)
+# validation_data_vectors += noise
+
 print("Number of training points:  ", len(train_samples))
 print("Number of validation points:", len(validation_samples))
-
-# cuda or cpu
-if torch.cuda.is_available():
-    device = 'cuda:0'
-else:
-    device = 'cpu'
-    torch.set_num_interop_threads(40) # Inter-op parallelism
-    torch.set_num_threads(40) # Intra-op parallelism
-
-print('Using device: ',device)
     
 TS = torch.as_tensor(train_samples,dtype=torch.float)
 TDV = torch.as_tensor(train_data_vectors,dtype=torch.float)
