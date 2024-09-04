@@ -9,33 +9,7 @@ sys.path.insert(0, os.path.abspath(".."))
 from cocoa_emu import cocoa_config
 from cocoa_emu import nn_pca_emulator 
 from cocoa_emu.nn_emulator import Affine, \
-                                  ResBlock, \
-                                  ResBottle, \
-                                  DenseBlock, \
-                                  Attention, \
-                                  Transformer, \
-                                  True_Transformer, \
-                                  Better_Attention, \
-                                  Better_Transformer, \
-                                  Better_ResBlock, \
-                                  mamba_block, \
-                                  SSM
-
-if '--auto' in sys.argv:
-    idx = sys.argv.index('--auto')
-    print('running in automatic mode')
-
-    INT_DIM = int(sys.argv[idx+1])
-    dim_frac = int(sys.argv[idx+2])
-    N_layers = int(sys.argv[idx+3])
-
-    print('internal dimension:', INT_DIM)
-    print('bottlneck factor:  ', dim_frac)
-    print('number of layers:  ', N_layers)
-
-else:
-    INT_DIM = 128
-    N=0
+                                  Better_ResBlock
 
 # cuda or cpu
 if torch.cuda.is_available():
@@ -56,8 +30,6 @@ print('Using device: ',device)
 in_dim=12
 # N_layers = 1
 int_dim_res = 256
-n_channels = 32
-int_dim_trf = 1024
 out_dim = 780
 
 layers = []
@@ -65,49 +37,8 @@ layers.append(nn.Linear(in_dim, int_dim_res))
 layers.append(Better_ResBlock(int_dim_res, int_dim_res))
 layers.append(Better_ResBlock(int_dim_res, int_dim_res))
 layers.append(Better_ResBlock(int_dim_res, int_dim_res))
-layers.append(nn.Linear(int_dim_res, int_dim_trf))
-layers.append(Better_Attention(int_dim_trf, n_channels))
-layers.append(Better_Transformer(int_dim_trf, n_channels))
-layers.append(Better_Attention(int_dim_trf, n_channels))
-layers.append(Better_Transformer(int_dim_trf, n_channels))
-layers.append(Better_Attention(int_dim_trf, n_channels))
-layers.append(Better_Transformer(int_dim_trf, n_channels))
-layers.append(nn.Linear(int_dim_trf,out_dim))
+layers.append(nn.Linear(int_dim_res,out_dim))
 layers.append(Affine())
-
-##############################################
-#       TRYING TO OVERFIT WITH THIS          #
-##############################################
-# layers.append(nn.Linear(in_dim, int_dim_res))
-# #layers.append(nn.Dropout(p=0.3))
-# layers.append(nn.Linear(int_dim_res, int_dim_res))
-# layers.append(nn.Tanh())
-# layers.append(nn.Linear(int_dim_res, int_dim_res))
-# layers.append(nn.Tanh())
-# layers.append(nn.Linear(int_dim_res, int_dim_res))
-# layers.append(nn.Tanh())
-# layers.append(nn.Linear(int_dim_res, int_dim_res))
-# layers.append(nn.Tanh())
-# layers.append(nn.Linear(int_dim_res, int_dim_res))
-# layers.append(nn.Tanh())
-# layers.append(nn.Linear(int_dim_res, int_dim_res))
-# layers.append(nn.Tanh())
-# layers.append(nn.Linear(int_dim_res,out_dim))
-# layers.append(Affine())
-
-#####################
-#   TESTING MAMBA   #
-#####################
-# layers.append(nn.Linear(in_dim, int_dim_res))
-# layers.append(Better_ResBlock(int_dim_res, int_dim_res))
-# layers.append(Better_ResBlock(int_dim_res, int_dim_res))
-# layers.append(Better_ResBlock(int_dim_res, int_dim_res))
-# layers.append(mamba_block(int_dim_res, 2*int_dim_res, 1, 1, 9, 1, 16, device))
-# layers.append(mamba_block(int_dim_res, 2*int_dim_res, 1, 1, 9, 1, 16, device))
-# layers.append(mamba_block(int_dim_res, 2*int_dim_res, 1, 1, 9, 1, 16, device))
-# layers.append(nn.Linear(int_dim_res,out_dim))
-# layers.append(Affine())
-
 
 # construct the model
 model = nn.Sequential(*layers)
@@ -266,7 +197,7 @@ VDV = torch.as_tensor(validation_data_vectors,dtype=torch.float)
 
 emu = nn_pca_emulator(model,
                         dv_fid, dv_std, cov_inv_pc,
-                        evecs, device, reduce_lr=True,lr=1e-3,weight_decay=1e-3)
+                        evecs, device, reduce_lr=False,lr=1e-3,weight_decay=1e-3)
 
 #batch size default : 2500
 emu.train(TS, TDV, VS, VDV, batch_size=256,n_epochs=250)
@@ -274,28 +205,6 @@ emu.train(TS, TDV, VS, VDV, batch_size=256,n_epochs=250)
 emu.save('./projects/lsst_y1/emulator_output/models/'+outpath)
 print("DONE!!")   
 
-
-##################################
-#                                #
-#      SOME GOOD MODELS :)       #
-#                                #
-##################################
-
-#---     Resnet+Attention     ---#
-
-# layers = []
-# layers.append(ResBlock(INT_DIM,INT_DIM))
-# layers.append(ResBlock(INT_DIM,INT_DIM))
-# layers.append(ResBlock(INT_DIM,INT_DIM))
-# layers.append(nn.Linear(INT_DIM,1024))
-# layers.append(Attention(1024,dim_frac))
-# layers.append(Transformer(dim_frac,1024//dim_frac))
-# layers.append(nn.Linear(1024,OUTPUT_DIM))
-# layers.append(Affine())
-
-#--------------------------------#
-
-##################################
 
 
 

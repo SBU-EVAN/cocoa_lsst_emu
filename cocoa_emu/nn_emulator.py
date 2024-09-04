@@ -108,7 +108,7 @@ class DenseBlock(nn.Module):
         return o
 
 class Better_Attention(nn.Module):
-    def __init__(self, in_size ,n_partitions):
+    def __init__(self, in_size ,n_partitions, dropout=False):
         super(Better_Attention, self).__init__()
 
         self.embed_dim    = in_size//n_partitions
@@ -120,6 +120,12 @@ class Better_Attention(nn.Module):
         self.scale        = np.sqrt(self.embed_dim)
         self.n_partitions = n_partitions # n_partions or n_channels are synonyms 
         self.norm         = torch.nn.LayerNorm(in_size) # layer norm has geometric order (https://lessw.medium.com/what-layernorm-really-does-for-attention-in-transformers-4901ea6d890e)
+
+        self.dropout = dropout
+        if self.dropout:
+            self.drop = nn.Dropout(p=0.1)
+        else:
+            self.drop = nn.Identity()
 
     def forward(self, x):
         x_norm    = self.norm(x)
@@ -135,22 +141,23 @@ class Better_Attention(nn.Module):
         prod        = torch.bmm(normed_mat,V)
 
         #out = torch.cat(tuple([prod[:,i] for i in range(self.n_partitions)]),dim=1)+x
-        out = torch.reshape(prod,(batch_size,-1))+x # reshape back to vector
+        out = self.drop(torch.reshape(prod,(batch_size,-1)))+x # reshape back to vector
 
         return out
 
 class Better_Transformer(nn.Module):
-    def __init__(self, in_size, n_partitions):
+    def __init__(self, in_size, n_partitions, dropout=False):
         super(Better_Transformer, self).__init__()  
     
         # get/set up hyperparams
+        self.in_size      = in_size
         self.int_dim      = in_size//n_partitions 
         self.n_partitions = n_partitions
-        self.act          = nn.Tanh() #activation_fcn(in_size)  #nn.Tanh()#nn.ReLU()#
+        self.act          = activation_fcn(in_size)  #nn.Tanh()   #nn.ReLU()#
         self.norm         = torch.nn.BatchNorm1d(in_size)
         #self.act2         = nn.Tanh()#nn.ReLU()#
         #self.norm2        = torch.nn.BatchNorm1d(in_size)
-        self.act3         = nn.Tanh() #activation_fcn(in_size)  #nn.Tanh()
+        self.act3         = activation_fcn(in_size)  #nn.Tanh()
         self.norm3        = torch.nn.BatchNorm1d(in_size)
 
         # set up weight matrices and bias vectors
@@ -176,16 +183,31 @@ class Better_Transformer(nn.Module):
         bound2 = 1 / np.sqrt(fan_in2) 
         nn.init.uniform_(self.bias2, -bound2, bound2)
 
+        self.dropout = dropout
+        if self.dropout:
+            self.drop = nn.Dropout(p=0.1)
+        else:
+            self.drop = nn.Identity()
+
     def forward(self,x):
         mat1 = torch.block_diag(*self.weights1) # how can I do this on init rather than on each forward pass?
         mat2 = torch.block_diag(*self.weights2)
         #x_norm = self.norm(x)
         #_x = x_norm.reshape(x_norm.shape[0],self.n_partitions,self.int_dim) # reshape into channels
         #_x = x.reshape(x.shape[0],self.n_partitions,self.int_dim) # reshape into channels
-        o1 = self.act(self.norm(torch.matmul(x,mat1)+self.bias1))
-        o2 = torch.matmul(o1,mat2)+self.bias2  #self.act2(self.norm2(torch.matmul(o1,mat2)+self.bias2))
-        o3 = self.act3(self.norm3(o2+x))
-        return o3
+
+        # o1 = self.act(self.norm(torch.matmul(x,mat1)+self.bias1))
+        # o2 = torch.matmul(o1,mat2)+self.bias2  #self.act2(self.norm2(torch.matmul(o1,mat2)+self.bias2))
+        # o3 = self.act3(self.norm3(o2+x))
+        # return o3
+
+        # TEST ACTIVATION FUNCTION #
+        o1 = self.norm(torch.matmul(x,mat1)+self.bias1)
+        o2 = self.act(o1)#.reshape(x.shape[0],self.n_partitions,self.int_dim)).reshape(x.shape[0],self.in_size)
+        o3 = self.drop(torch.matmul(o1,mat2) + self.bias2) + x
+        o4 = self.act3(o3)#.reshape(x.shape[0],self.n_partitions,self.int_dim)).reshape(x.shape[0],self.in_size)
+        return o4
+        # END ACTIVATION TEST
 
 class activation_fcn(nn.Module):
     def __init__(self, dim):
@@ -196,8 +218,10 @@ class activation_fcn(nn.Module):
         self.beta = nn.Parameter(torch.zeros((dim)))
 
     def forward(self,x):
-        exp = -1*torch.mul(self.beta,x)
-        inv = (1+torch.exp(exp)).pow_(-1)
+        #exp = -1*torch.mul(self.beta,x)
+        #inv = (1+torch.exp(exp)).pow_(-1)
+        exp = torch.mul(self.beta,x)
+        inv = torch.special.expit(exp)
         fac_2 = 1-self.gamma
         out = torch.mul(self.gamma + torch.mul(inv,fac_2), x)
         return out
@@ -249,7 +273,7 @@ class nn_pca_emulator:
             #self.optim = torch.optim.SGD(self.model.parameters(), lr=lr ,weight_decay=self.weight_decay)
         if self.reduce_lr == True:
             print('Reduce LR on plateu: ',self.reduce_lr)
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optim, 'min',patience=10)#,min_lr=1e-12)#, factor=0.5)
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optim, 'min',patience=15,factor=0.1)#,min_lr=1e-12)#, factor=0.5)
             #self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optim, 0.95, last_epoch=-1)
         if dtype=='double':
             torch.set_default_dtype(torch.double)
@@ -318,11 +342,11 @@ class nn_pca_emulator:
                 ### BEGIN TESTING
                 #loss = torch.mean(torch.log(torch.diag(loss1))) # log chi^2
                 #loss = torch.mean(torch.log(1+torch.diag(loss1))) # log hyperbola
-                #loss = torch.mean((1+2*torch.diag(loss1))**(1/2))-1 #hyperbola
+                loss = torch.mean((1+2*torch.diag(loss1))**(1/2))-1 #hyperbola
                 #loss = torch.mean((1+3*torch.diag(loss1))**(1/3))-1 #hyperbola^1/3
                 ### END TESTING
 
-                loss = torch.mean(torch.diag(loss1)) # commented out for testing
+                #loss = torch.mean(torch.diag(loss1)) # commented out for testing
                 losses.append(loss.cpu().detach().numpy())
                 self.optim.zero_grad()
                 loss.backward()
@@ -356,7 +380,7 @@ class nn_pca_emulator:
                     #loss_vali = torch.mean((1+3*torch.diag(loss_vali1))**(1/3))-1 #hyperbola^1/3
                     ### END TESTING
                     
-                    loss_vali = torch.mean(torch.diag(loss_vali1)) # commented out and replaced with testing portion above
+                    #loss_vali = torch.mean(torch.diag(loss_vali1)) # commented out and replaced with testing portion above
                     losses.append(np.float(loss_vali.cpu().detach().numpy()))
 
                 losses_vali.append(np.mean(losses))
@@ -387,7 +411,7 @@ class nn_pca_emulator:
         return y_pred.cpu().detach().numpy()
 
     def save(self, filename):
-        torch.save(self.model, filename)
+        torch.save(self.model.state_dict(), filename)
         with h5.File(filename + '.h5', 'w') as f:
             f['X_mean'] = self.X_mean
             f['X_std']  = self.X_std
@@ -764,3 +788,37 @@ class mamba_block(nn.Module):
         y = self.linear3(y)
 
         return self.act3(self.norm(y)+x)
+
+class Old_Better_Transformer(nn.Module):
+    def __init__(self, in_size, n_partitions):
+        super(Old_Better_Transformer, self).__init__()  
+
+        # get/set up hyperparams
+        self.int_dim      = in_size//n_partitions 
+        self.n_partitions = n_partitions
+        self.act          = activation_fcn(self.int_dim)#nn.Tanh()#nn.ReLU()#
+        self.norm         = torch.nn.BatchNorm1d(in_size)
+
+        # set up weight matrices and bias vectors
+        weights = torch.zeros((n_partitions,self.int_dim,self.int_dim))
+        self.weights = nn.Parameter(weights) # turn the weights tensor into trainable weights
+        bias = torch.Tensor(in_size)
+        self.bias = nn.Parameter(bias) # turn bias tensor into trainable weights
+
+        # initialize weights and biases
+        # this process follows the standard from the nn.Linear module (https://auro-227.medium.com/writing-a-custom-layer-in-pytorch-14ab6ac94b77)
+        nn.init.kaiming_uniform_(self.weights, a=np.sqrt(5)) # matrix weights init 
+        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weights) # fan_in in the input size, fan out is the output size but it is not use here
+        bound = 1 / np.sqrt(fan_in) 
+        nn.init.uniform_(self.bias, -bound, bound) # bias weights init
+
+    def forward(self,x):
+        mat = torch.block_diag(*self.weights) # how can I do this on init rather than on each forward pass?
+        x_norm = self.norm(x)
+        _x = x_norm.reshape(x_norm.shape[0],self.n_partitions,self.int_dim) # reshape into channels
+        o = self.act(torch.matmul(x_norm,mat)+self.bias)
+        return o+x
+
+
+
+
